@@ -101,7 +101,7 @@ func isPrivateAddress(address string) (bool, error) {
 // FromRequest return client's real public IP address from http request headers.
 func FromRequest(r *http.Request) string {
 	xClientIP := r.Header.Get(xClientIPHeader)
-	if xClientIP != nil {
+	if len(xClientIP) != 0 {
 		return string(xClientIP)
 	}
 
@@ -114,7 +114,7 @@ func FromRequest(r *http.Request) string {
 	}
 
 	xForwardedFor := r.Header.Get(xForwardedForHeader)
-	if xForwardedFor != nil {
+	if len(xForwardedFor) != 0 {
 		requestIP, err := retrieveForwardedIP(string(xForwardedFor))
 		if err == nil {
 			return requestIP
@@ -189,7 +189,7 @@ func RealIP(r *http.Request) string {
 func fromSpecialHeaders(r *http.Request) (string, error) {
 	ipHeaders := [...]string{cfConnectingIPHeader, fastlyClientIPHeader, trueClientIPHeader, xRealIPHeader}
 	for _, iplHeader := range ipHeaders {
-		if clientIP := r.Header.Get(iplHeader); clientIP != nil {
+		if clientIP := r.Header.Get(iplHeader); len(clientIP) != 0 {
 			return string(clientIP), nil
 		}
 	}
@@ -199,7 +199,7 @@ func fromSpecialHeaders(r *http.Request) (string, error) {
 func fromForwardedHeaders(r *http.Request) (string, error) {
 	forwardedHeaders := [...]string{xForwardedHeader, forwardedForHeader, forwardedHeader}
 	for _, forwardedHeader := range forwardedHeaders {
-		if forwarded := r.Header.Get(forwardedHeader); forwarded != nil {
+		if forwarded := r.Header.Get(forwardedHeader); len(forwarded) != 0 {
 			if clientIP, err := retrieveForwardedIP(string(forwarded)); err == nil {
 				return clientIP, nil
 			}
