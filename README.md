@@ -1,5 +1,12 @@
 This is standard lib net/http golang realip with suport for Cloudflare etc.
 
+Code is not optimized, if true header IP is faked (for CDNs), the faked IP will be used instead.
+
+Part of our to do to fix this problem. 
+TODO : DNS should resolved to CDN if to use the header IP of those CDN.
+
+Contributors welcomed! We will update here very very very infrequently because we are short of time.
+
 # RealIP
 
 [![GoDoc](https://godoc.org/github.com/tomasen/realip?status.svg)](http://godoc.org/github.com/tomasen/realip)
