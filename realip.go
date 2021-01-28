@@ -106,7 +106,7 @@ func FromRequest(r *http.Request) string {
 	}
 
 	xOriginalForwardedFor := r.Header.Get(xOriginalForwardedForHeader)
-	if xOriginalForwardedFor != nil {
+	if len(xOriginalForwardedFor) != 0 {
 		requestIP, err := retrieveForwardedIP(string(xOriginalForwardedFor))
 		if err == nil {
 			return requestIP
@@ -148,7 +148,7 @@ func FromRequest(r *http.Request) string {
 	
 	// Fetch header value
 	xRealIP := r.Header.Get("X-Real-Ip")
-	xForwardedFor := r.Header.Get("X-Forwarded-For")
+	//xForwardedFor := r.Header.Get("X-Forwarded-For")
 
 	// If both empty, return IP from remote address
 	if xRealIP == "" && xForwardedFor == "" {
