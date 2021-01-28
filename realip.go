@@ -7,6 +7,55 @@ import (
 	"strings"
 )
 
+
+
+
+
+
+//Copied from https://github.com/Ferluci/fasthttp-realip/
+
+
+// Should use canonical format of the header key s
+// https://golang.org/pkg/net/http/#CanonicalHeaderKey
+
+// Header may return multiple IP addresses in the format: "client IP, proxy 1 IP, proxy 2 IP", so we take the the first one.
+var xOriginalForwardedForHeader = http.CanonicalHeaderKey("X-Original-Forwarded-For")
+var xForwardedForHeader = http.CanonicalHeaderKey("X-Forwarded-For")
+var xForwardedHeader = http.CanonicalHeaderKey("X-Forwarded")
+var forwardedForHeader = http.CanonicalHeaderKey("Forwarded-For")
+var forwardedHeader = http.CanonicalHeaderKey("Forwarded")
+
+// Standard headers used by Amazon EC2, Heroku, and others
+var xClientIPHeader = http.CanonicalHeaderKey("X-Client-IP")
+
+// Nginx proxy/FastCGI
+var xRealIPHeader = http.CanonicalHeaderKey("X-Real-IP")
+
+// Cloudflare.
+// @see https://support.cloudflare.com/hc/en-us/articles/200170986-How-does-Cloudflare-handle-HTTP-Request-headers-
+// CF-Connecting-IP - applied to every request to the origin.
+var cfConnectingIPHeader = http.CanonicalHeaderKey("CF-Connecting-IP")
+
+// Fastly CDN and Firebase hosting header when forwared to a cloud function
+var fastlyClientIPHeader = http.CanonicalHeaderKey("Fastly-Client-Ip")
+
+// Akamai and Cloudflare
+var trueClientIPHeader = http.CanonicalHeaderKey("True-Client-Ip")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 var cidrs []*net.IPNet
 
 func init() {
@@ -51,6 +100,52 @@ func isPrivateAddress(address string) (bool, error) {
 
 // FromRequest return client's real public IP address from http request headers.
 func FromRequest(r *http.Request) string {
+	xClientIP := r.Header.Get(xClientIPHeader)
+	if xClientIP != nil {
+		return string(xClientIP)
+	}
+
+	xOriginalForwardedFor := r.Header.Get(xOriginalForwardedForHeader)
+	if xOriginalForwardedFor != nil {
+		requestIP, err := retrieveForwardedIP(string(xOriginalForwardedFor))
+		if err == nil {
+			return requestIP
+		}
+	}
+
+	xForwardedFor := r.Header.Get(xForwardedForHeader)
+	if xForwardedFor != nil {
+		requestIP, err := retrieveForwardedIP(string(xForwardedFor))
+		if err == nil {
+			return requestIP
+		}
+	}
+
+	if ip, err := fromSpecialHeaders(r); err == nil {
+		return ip
+	}
+
+	if ip, err := fromForwardedHeaders(r); err == nil {
+		return ip
+	}
+
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
 	// Fetch header value
 	xRealIP := r.Header.Get("X-Real-Ip")
 	xForwardedFor := r.Header.Get("X-Forwarded-For")
@@ -87,3 +182,48 @@ func FromRequest(r *http.Request) string {
 func RealIP(r *http.Request) string {
 	return FromRequest(r)
 }
+
+
+
+
+func fromSpecialHeaders(r *http.Request) (string, error) {
+	ipHeaders := [...]string{cfConnectingIPHeader, fastlyClientIPHeader, trueClientIPHeader, xRealIPHeader}
+	for _, iplHeader := range ipHeaders {
+		if clientIP := r.Header.Get(iplHeader); clientIP != nil {
+			return string(clientIP), nil
+		}
+	}
+	return "", errors.New("can't get ip from special headers")
+}
+
+func fromForwardedHeaders(r *http.Request) (string, error) {
+	forwardedHeaders := [...]string{xForwardedHeader, forwardedForHeader, forwardedHeader}
+	for _, forwardedHeader := range forwardedHeaders {
+		if forwarded := r.Header.Get(forwardedHeader); forwarded != nil {
+			if clientIP, err := retrieveForwardedIP(string(forwarded)); err == nil {
+				return clientIP, nil
+			}
+		}
+	}
+	return "", errors.New("can't get ip from forwarded headers")
+}
+
+
+func retrieveForwardedIP(forwardedHeader string) (string, error) {
+	for _, address := range strings.Split(forwardedHeader, ",") {
+		if len(address) > 0 {
+			address = strings.TrimSpace(address)
+			isPrivate, err := isPrivateAddress(address)
+			switch {
+			case !isPrivate && err == nil:
+				return address, nil
+			case isPrivate && err == nil:
+				return "", errors.New("forwarded ip is private")
+			default:
+				return "", err
+			}
+		}
+	}
+	return "", errors.New("empty or invalid forwarded header")
+}
+
